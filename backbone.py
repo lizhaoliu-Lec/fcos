@@ -2,10 +2,8 @@ import torch.nn as nn
 import math
 import torch.utils.model_zoo as model_zoo
 
-
 __all__ = ['ResNet', 'resnet18', 'resnet34', 'resnet50', 'resnet101',
            'resnet152']
-
 
 model_urls = {
     'resnet18': 'https://download.pytorch.org/models/resnet18-5c106cde.pth',
@@ -153,12 +151,12 @@ class ResNet(nn.Module):
             return x
         else:
             return (out3, out4, out5)
-    
+
     def freeze_bn(self):
         for layer in self.modules():
             if isinstance(layer, nn.BatchNorm2d):
                 layer.eval()
-    
+
     def freeze_stages(self, stage):
         if stage >= 0:
             self.bn1.eval()
@@ -230,4 +228,3 @@ def resnet152(pretrained=False, **kwargs):
     if pretrained:
         model.load_state_dict(model_zoo.load_url(model_urls['resnet152']))
     return model
-

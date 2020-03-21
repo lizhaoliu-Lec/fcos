@@ -1,7 +1,6 @@
 import torch
 import imp
 
-
 try:
     imp.find_module('assign_box_cuda')
 
@@ -11,7 +10,7 @@ try:
 
 
     def assign_box(label_cls, label_box, locs, im_h, im_w, ph, pw,
-                    tlbr_max_min, tlbr_max_max, r):
+                   tlbr_max_min, tlbr_max_max, r):
         '''
         GPU >= 6.1
 
@@ -49,14 +48,13 @@ try:
         assert label_box.shape == (b, n_max, 4)
         assert n_max <= 200
         output = assign_box_cuda.assign_box(label_cls, label_box, locs, im_h, im_w, ph, pw,
-                                                tlbr_max_min, tlbr_max_max, r) # F(b, ph, pw, 1+4)
+                                            tlbr_max_min, tlbr_max_max, r)  # F(b, ph, pw, 1+4)
         target_cls, target_box = torch.split(output, [1, 4], dim=3)
         target_cls = target_cls.squeeze(3)
         # target_cls = assign_box_cuda.smooth(target_cls) # F(b, ph, pw)
         return target_cls.long(), target_box
-    
+
 
 except ImportError:
 
     raise 'not find lib assign_box_cuda'
-

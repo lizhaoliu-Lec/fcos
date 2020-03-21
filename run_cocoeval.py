@@ -8,7 +8,6 @@ import os
 import api
 from detector import Detector
 
-
 # TODO: Set your coco_table_file, coco_anno_root and set_name
 coco_table_file = 'data/coco_table.json'
 coco_anno_root = '/home1/xyt/dataset/coco17/'
@@ -23,7 +22,6 @@ with open('train.json', 'r') as load_f:
     cfg = json.load(load_f)
 torch.cuda.set_device(cfg['device'][0])
 
-
 # Prepare the network
 net = Detector(pretrained=False)
 device_out = 'cuda:%d' % (cfg['device'][0])
@@ -31,16 +29,13 @@ net.load_state_dict(torch.load('net.pkl', map_location=device_out))
 net = net.cuda(cfg['device'][0])
 net.eval()
 
-
 # Get eval dataset
-dataset_eval = Dataset_CSV(cfg['root_eval'], cfg['list_eval'], cfg['name_file'], 
-    size=net.view_size, train=False, normalize=True)
-
+dataset_eval = Dataset_CSV(cfg['root_eval'], cfg['list_eval'], cfg['name_file'],
+                           size=net.view_size, train=False, normalize=True)
 
 # Prepare API structure
-inferencer = api.COCOEvaluator(net, dataset_eval, 
-                coco_table['val_image_ids'], coco_table['coco_labels'])
-
+inferencer = api.COCOEvaluator(net, dataset_eval,
+                               coco_table['val_image_ids'], coco_table['coco_labels'])
 
 # Eval
 inferencer.step_epoch()

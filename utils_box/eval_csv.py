@@ -4,7 +4,6 @@ import numpy as np
 from collections import defaultdict
 
 
-
 def bbox_iou_np(bbox_a, bbox_b):
     tl = np.maximum(bbox_a[:, None, :2], bbox_b[:, :2])
     br = np.minimum(bbox_a[:, None, 2:], bbox_b[:, 2:])
@@ -14,10 +13,9 @@ def bbox_iou_np(bbox_a, bbox_b):
     return area_i / (area_a[:, None] + area_b - area_i + 1e-10)
 
 
-
 def gen_prec_rec_np(
-        pred_bboxes, pred_labels, pred_scores, 
-        gt_bboxes, gt_labels, 
+        pred_bboxes, pred_labels, pred_scores,
+        gt_bboxes, gt_labels,
         iou_th=0.5):
     '''
     Param:
@@ -42,11 +40,11 @@ def gen_prec_rec_np(
 
     for n in range(n_frames):
 
-        pred_bbox  = pred_bboxes[n]
+        pred_bbox = pred_bboxes[n]
         pred_label = pred_labels[n]
         pred_score = pred_scores[n]
-        gt_bbox    = gt_bboxes[n]
-        gt_label   = gt_labels[n]
+        gt_bbox = gt_bboxes[n]
+        gt_label = gt_labels[n]
 
         for l in np.unique(np.concatenate((pred_label, gt_label)).astype(int)):
 
@@ -70,22 +68,22 @@ def gen_prec_rec_np(
             if len(gt_bbox_l) == 0:
                 match[l].extend((0,) * pred_bbox_l.shape[0])
                 continue
-            
+
             # In order to prevent the area from being zero
             pred_bbox_l = pred_bbox_l.copy()
             gt_bbox_l = gt_bbox_l.copy()
             pred_bbox_l[:, 2:] += 1
             gt_bbox_l[:, 2:] += 1
 
-            iou = bbox_iou_np(pred_bbox_l, gt_bbox_l) # arr(N,M)
-            gt_index = iou.argmax(axis=1) # arr(N)
+            iou = bbox_iou_np(pred_bbox_l, gt_bbox_l)  # arr(N,M)
+            gt_index = iou.argmax(axis=1)  # arr(N)
 
             # mark -1 if IOU<th of a prediction box and the corresponding largest label box
-            gt_index[iou.max(axis=1) < iou_th] = -1 
+            gt_index[iou.max(axis=1) < iou_th] = -1
             del iou
 
             # selec indicates whether a label box has been selected
-            selec = np.zeros(gt_bbox_l.shape[0], dtype=bool) # arr(M)
+            selec = np.zeros(gt_bbox_l.shape[0], dtype=bool)  # arr(M)
 
             for gt_idx in gt_index:
                 if gt_idx >= 0:
@@ -99,8 +97,8 @@ def gen_prec_rec_np(
 
     n_fg_class = max(n_pos.keys()) + 1
 
-    prec = [None]*n_fg_class
-    rec  = [None]*n_fg_class
+    prec = [None] * n_fg_class
+    rec = [None] * n_fg_class
 
     for l in n_pos.keys():
         score_l = np.array(score[l])
@@ -118,7 +116,6 @@ def gen_prec_rec_np(
         if n_pos[l] > 0:
             rec[l] = tp / n_pos[l]
     return prec, rec
-
 
 
 def gen_ap_np(prec, rec):
@@ -140,12 +137,12 @@ def gen_ap_np(prec, rec):
     - ap[0] == np.nan
     '''
     n_class = len(prec)
-    ap = np.empty(n_class) # np.float
+    ap = np.empty(n_class)  # np.float
     for l in range(n_class):
         if prec[l] is None or rec[l] is None:
             ap[l] = np.nan
             continue
-        
+
         # place sentinel point
         mpre = np.concatenate(([0], np.nan_to_num(prec[l]), [0]))
         mrec = np.concatenate(([0], rec[l], [1]))
@@ -167,11 +164,10 @@ def gen_ap_np(prec, rec):
     return ap
 
 
-
 def eval_detection(
-    pred_bboxes, pred_labels, pred_scores, 
-    gt_bboxes, gt_labels,
-    iou_th=0.5):
+        pred_bboxes, pred_labels, pred_scores,
+        gt_bboxes, gt_labels,
+        iou_th=0.5):
     '''
     Param:
     pred_bboxes: [ndarray(N1,4), ndarray(N2,4), ...] # float, 4:ymin,xmin,ymax,xmax

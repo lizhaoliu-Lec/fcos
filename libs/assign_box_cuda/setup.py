@@ -7,10 +7,10 @@ setup(
     name='assign_box_cuda',
     ext_modules=[
         CUDAExtension(
-            'assign_box_cuda', 
+            'assign_box_cuda',
             ['assign_box_cuda.cpp', 'assign_box_kernel.cu'],
         )
     ],
     cmdclass={
         'build_ext': BuildExtension
-})
+    })

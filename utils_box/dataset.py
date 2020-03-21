@@ -1,17 +1,16 @@
 import torch
-import numpy as np 
-import matplotlib.pyplot as plt 
+import numpy as np
+import matplotlib.pyplot as plt
 import os, math, random
 from PIL import Image, ImageDraw
 import torch.utils.data as data
 import torchvision.transforms as transforms
 
 
-
 class Dataset_CSV(data.Dataset):
-    def __init__(self, root, list_file, name_file, 
-                    size=1025, train=True, normalize=True, boxarea_th=35,
-                    img_scale_min=0.8, augmentation=None):
+    def __init__(self, root, list_file, name_file,
+                 size=1025, train=True, normalize=True, boxarea_th=35,
+                 img_scale_min=0.8, augmentation=None):
         ''''
         Provide:
         self.fnames:      [fname1, fname2, fname3, ...] # image filename
@@ -48,12 +47,12 @@ class Dataset_CSV(data.Dataset):
                 box = []
                 label = []
                 for i in range(num_boxes):
-                    ymin = splited[1+5*i]
-                    xmin = splited[2+5*i]
-                    ymax = splited[3+5*i]
-                    xmax = splited[4+5*i]
-                    c = splited[5+5*i]
-                    box.append([float(ymin),float(xmin),float(ymax),float(xmax)])
+                    ymin = splited[1 + 5 * i]
+                    xmin = splited[2 + 5 * i]
+                    ymax = splited[3 + 5 * i]
+                    xmax = splited[4 + 5 * i]
+                    c = splited[5 + 5 * i]
+                    box.append([float(ymin), float(xmin), float(ymax), float(xmax)])
                     label.append(int(c))
                 self.boxes.append(torch.FloatTensor(box))
                 self.labels.append(torch.LongTensor(label))
@@ -61,12 +60,10 @@ class Dataset_CSV(data.Dataset):
             lines = f.readlines()
             for line in lines:
                 self.LABEL_NAMES.append(line.strip())
-        self.normalizer = transforms.Normalize((0.485,0.456,0.406), (0.229,0.224,0.225))
-    
+        self.normalizer = transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
 
     def __len__(self):
         return self.num_samples
-    
 
     def __getitem__(self, idx):
         '''
@@ -82,8 +79,8 @@ class Dataset_CSV(data.Dataset):
             img = img.convert('RGB')
         boxes = self.boxes[idx].clone()
         boxes[:, :2].clamp_(min=1)
-        boxes[:, 2].clamp_(max=float(img.size[1])-1)
-        boxes[:, 3].clamp_(max=float(img.size[0])-1)
+        boxes[:, 2].clamp_(max=float(img.size[1]) - 1)
+        boxes[:, 3].clamp_(max=float(img.size[0]) - 1)
         labels = self.labels[idx].clone()
         if self.train:
             if random.random() < 0.5:
@@ -98,8 +95,8 @@ class Dataset_CSV(data.Dataset):
                 img, boxes, loc, scale = center_fix(img, boxes, self.size)
         else:
             img, boxes, loc, scale = center_fix(img, boxes, self.size)
-        hw = boxes[:, 2:] - boxes[:, :2] # [N,2]
-        area = hw[:, 0] * hw[:, 1]       # [N]
+        hw = boxes[:, 2:] - boxes[:, :2]  # [N,2]
+        area = hw[:, 0] * hw[:, 1]  # [N]
         mask = area >= self.boxarea_th
         boxes = boxes[mask]
         labels = labels[mask]
@@ -107,7 +104,6 @@ class Dataset_CSV(data.Dataset):
         if self.normalize:
             img = self.normalizer(img)
         return img, boxes, labels, loc, scale
-
 
     def collate_fn(self, data):
         '''
@@ -135,88 +131,82 @@ class Dataset_CSV(data.Dataset):
         return img, boxes_t, labels_t, loc, scale_t
 
 
-
 def flip(img, boxes):
-    img = img.transpose(Image.FLIP_LEFT_RIGHT) 
+    img = img.transpose(Image.FLIP_LEFT_RIGHT)
     w = img.width
     if boxes.shape[0] != 0:
-        xmin = w - boxes[:,3]
-        xmax = w - boxes[:,1]
-        boxes[:,1] = xmin
-        boxes[:,3] = xmax
+        xmin = w - boxes[:, 3]
+        xmax = w - boxes[:, 1]
+        boxes[:, 1] = xmin
+        boxes[:, 3] = xmax
     return img, boxes
-
 
 
 def center_fix(img, boxes, size):
     w, h = img.size
-    size_min = min(w,h)
-    size_max = max(w,h)
+    size_min = min(w, h)
+    size_max = max(w, h)
     sw = sh = float(size) / size_max
     ow = int(w * sw + 0.5)
     oh = int(h * sh + 0.5)
     ofst_w = round((size - ow) / 2.0)
     ofst_h = round((size - oh) / 2.0)
-    img = img.resize((ow,oh), Image.BILINEAR)
-    img = img.crop((-ofst_w, -ofst_h, size-ofst_w, size-ofst_h))
+    img = img.resize((ow, oh), Image.BILINEAR)
+    img = img.crop((-ofst_w, -ofst_h, size - ofst_w, size - ofst_h))
     if boxes.shape[0] != 0:
-        boxes = boxes*torch.FloatTensor([sh,sw,sh,sw])
+        boxes = boxes * torch.FloatTensor([sh, sw, sh, sw])
         boxes += torch.FloatTensor([ofst_h, ofst_w, ofst_h, ofst_w])
-    loc = torch.FloatTensor([ofst_h, ofst_w, ofst_h+oh, ofst_w+ow])
+    loc = torch.FloatTensor([ofst_h, ofst_w, ofst_h + oh, ofst_w + ow])
     return img, boxes, loc, sw
-
 
 
 def random_resize_fix(img, boxes, size, img_scale_min):
     w, h = img.size
-    size_min = min(w,h)
-    size_max = max(w,h)
+    size_min = min(w, h)
+    size_max = max(w, h)
     scale_rate = float(size) / size_max
     scale_rate *= random.uniform(img_scale_min, 1.0)
     ow, oh = int(w * scale_rate + 0.5), int(h * scale_rate + 0.5)
-    img = img.resize((ow,oh), Image.BILINEAR)
+    img = img.resize((ow, oh), Image.BILINEAR)
     if boxes.shape[0] != 0:
-        boxes = boxes*torch.FloatTensor([scale_rate, scale_rate, scale_rate, scale_rate])
+        boxes = boxes * torch.FloatTensor([scale_rate, scale_rate, scale_rate, scale_rate])
     max_ofst_h = size - oh
     max_ofst_w = size - ow
     ofst_h = random.randint(0, max_ofst_h)
     ofst_w = random.randint(0, max_ofst_w)
-    img = img.crop((-ofst_w, -ofst_h, size-ofst_w, size-ofst_h))
+    img = img.crop((-ofst_w, -ofst_h, size - ofst_w, size - ofst_h))
     if boxes.shape[0] != 0:
         boxes += torch.FloatTensor([ofst_h, ofst_w, ofst_h, ofst_w])
-    loc = torch.FloatTensor([ofst_h, ofst_w, ofst_h+oh, ofst_w+ow])
+    loc = torch.FloatTensor([ofst_h, ofst_w, ofst_h + oh, ofst_w + ow])
     return img, boxes, loc, scale_rate
 
 
-
 COLOR_TABLE = [
-    'Red', 'Green', 'Blue', 'Yellow',
-    'Purple', 'Orange', 'DarkGreen', 'Purple',
-    'YellowGreen', 'Maroon', 'Teal',
-    'DarkGoldenrod', 'Peru', 'DarkRed', 'Tan',
-    'AliceBlue', 'LightBlue', 'Cyan', 'Teal',
-    'SpringGreen', 'SeaGreen', 'Lime', 'DarkGreen',
-    'YellowGreen', 'Ivory', 'Olive', 'DarkGoldenrod',
-    'Orange', 'Tan', 'Peru', 'Seashell',
-    'Coral', 'RosyBrown', 'Maroon', 'DarkRed',
-    'WhiteSmoke', 'LightGrey', 'Gray'
-] * 10
-
+                  'Red', 'Green', 'Blue', 'Yellow',
+                  'Purple', 'Orange', 'DarkGreen', 'Purple',
+                  'YellowGreen', 'Maroon', 'Teal',
+                  'DarkGoldenrod', 'Peru', 'DarkRed', 'Tan',
+                  'AliceBlue', 'LightBlue', 'Cyan', 'Teal',
+                  'SpringGreen', 'SeaGreen', 'Lime', 'DarkGreen',
+                  'YellowGreen', 'Ivory', 'Olive', 'DarkGoldenrod',
+                  'Orange', 'Tan', 'Peru', 'Seashell',
+                  'Coral', 'RosyBrown', 'Maroon', 'DarkRed',
+                  'WhiteSmoke', 'LightGrey', 'Gray'
+              ] * 10
 
 
 def draw_bbox_text(drawObj, ymin, xmin, ymax, xmax, text, color, bd=2):
-    drawObj.rectangle((xmin, ymin, xmax, ymin+bd), fill=color)
-    drawObj.rectangle((xmin, ymax-bd, xmax, ymax), fill=color)
-    drawObj.rectangle((xmin, ymin, xmin+bd, ymax), fill=color)
-    drawObj.rectangle((xmax-bd, ymin, xmax, ymax), fill=color)
+    drawObj.rectangle((xmin, ymin, xmax, ymin + bd), fill=color)
+    drawObj.rectangle((xmin, ymax - bd, xmax, ymax), fill=color)
+    drawObj.rectangle((xmin, ymin, xmin + bd, ymax), fill=color)
+    drawObj.rectangle((xmax - bd, ymin, xmax, ymax), fill=color)
     strlen = len(text)
-    drawObj.rectangle((xmin, ymin, xmin+strlen*6+5, ymin+12), fill=color)
-    drawObj.text((xmin+3, ymin), text)
+    drawObj.rectangle((xmin, ymin, xmin + strlen * 6 + 5, ymin + 12), fill=color)
+    drawObj.text((xmin + 3, ymin), text)
 
 
-
-def show_bbox(img, boxes, labels, NAME_TAB, file_name=None, scores=None, 
-                matplotlib=False, lb_g=True):
+def show_bbox(img, boxes, labels, NAME_TAB, file_name=None, scores=None,
+              matplotlib=False, lb_g=True):
     '''
     img:      FloatTensor(3, H, W)
     boxes:    FloatTensor(N, 4)
@@ -225,8 +215,10 @@ def show_bbox(img, boxes, labels, NAME_TAB, file_name=None, scores=None,
     file_name: 'out.bmp' or None
     scores:   FloatTensor(N)
     '''
-    if lb_g: bg_idx = 0
-    else: bg_idx = -1
+    if lb_g:
+        bg_idx = 0
+    else:
+        bg_idx = -1
     if not isinstance(img, Image.Image):
         img = transforms.ToPILImage()(img)
     drawObj = ImageDraw.Draw(img)
@@ -236,55 +228,57 @@ def show_bbox(img, boxes, labels, NAME_TAB, file_name=None, scores=None,
             box = boxes[box_id]
             # if NAME_TAB is not None:
             if scores is None:
-                draw_bbox_text(drawObj, box[0], box[1], box[2], box[3], NAME_TAB[lb], 
-                    color=COLOR_TABLE[lb])
+                draw_bbox_text(drawObj, box[0], box[1], box[2], box[3], NAME_TAB[lb],
+                               color=COLOR_TABLE[lb])
             else:
                 str_score = str(float(scores[box_id]))[:5]
                 str_out = NAME_TAB[lb] + ': ' + str_score
-                draw_bbox_text(drawObj, box[0], box[1], box[2], box[3], str_out, 
-                    color=COLOR_TABLE[lb])
+                draw_bbox_text(drawObj, box[0], box[1], box[2], box[3], str_out,
+                               color=COLOR_TABLE[lb])
     if file_name is not None:
         img.save(file_name)
     else:
         if matplotlib:
             plt.imshow(img, aspect='equal')
             plt.show()
-        else: img.show()
-
+        else:
+            img.show()
 
 
 if __name__ == '__main__':
 
     import augment
+
+
     def aug_func_demo(img, boxes):
         if random.random() < 0.9:
-            img, boxes = augment.colorJitter(img, boxes, 
-                            brightness=0.5, contrast=0.5, saturation=0.5, hue=0.5)
+            img, boxes = augment.colorJitter(img, boxes,
+                                             brightness=0.5, contrast=0.5, saturation=0.5, hue=0.5)
         if random.random() < 0.9:
             img, boxes = augment.random_rotation(img, boxes, degree=5)
         if random.random() < 0.9:
-            img, boxes = augment.random_crop_resize(img, boxes, size=512, 
-                            crop_scale_min=0.2, aspect_ratio=[3./4, 4./3], remain_min=0.1, 
-                            attempt_max=10)
+            img, boxes = augment.random_crop_resize(img, boxes, size=512,
+                                                    crop_scale_min=0.2, aspect_ratio=[3. / 4, 4. / 3], remain_min=0.1,
+                                                    attempt_max=10)
         return img, boxes
 
-    #TODO: parameters
+
+    # TODO: parameters
     train = True
     size = 1025
     boxarea_th = 32
     img_scale_min = 0.8
     augmentation = None
     batch_size = 8
-    csv_root  = 'D:\\dataset\\coco17\\images'
-    csv_list  = '../data/coco_val2017.txt'
-    csv_name  = '../data/coco_name.txt'
+    csv_root = 'D:\\dataset\\coco17\\images'
+    csv_list = '../data/coco_val2017.txt'
+    csv_name = '../data/coco_name.txt'
 
-    
-    dataset = Dataset_CSV(csv_root, csv_list, csv_name, 
-        size=size, train=train, normalize=False, boxarea_th=boxarea_th,
-        img_scale_min=img_scale_min, augmentation=augmentation)
-    dataloader = data.DataLoader(dataset, batch_size=batch_size, 
-        shuffle=True, num_workers=0, collate_fn=dataset.collate_fn)
+    dataset = Dataset_CSV(csv_root, csv_list, csv_name,
+                          size=size, train=train, normalize=False, boxarea_th=boxarea_th,
+                          img_scale_min=img_scale_min, augmentation=augmentation)
+    dataloader = data.DataLoader(dataset, batch_size=batch_size,
+                                 shuffle=True, num_workers=0, collate_fn=dataset.collate_fn)
     for imgs, boxes, labels, locs, scales in dataloader:
         print(imgs.shape)
         print(boxes.shape)
@@ -296,7 +290,7 @@ if __name__ == '__main__':
         # idx = int(input('idx:'))
         idx = 3
         print(labels[idx])
-        print(boxes[idx][labels[idx]>0])
+        print(boxes[idx][labels[idx] > 0])
         print('avg px:', int(torch.min(locs[:, 2:] - locs[:, :2], dim=1)[0].mean()))
         show_bbox(imgs[idx], boxes[idx], labels[idx], dataset.LABEL_NAMES)
         # show_bbox(imgs[idx], boxes[idx], labels[idx], None)
